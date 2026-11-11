@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Portal de recursos Sand</title>
+  <meta name="description" content="Portal interno de recursos para el equipo técnico y comercial de Sand. Versión de demostración generada con Claude Code.">
+  <link rel="icon" href="assets/logo-sand-positivo.png" type="image/png">
+  <link rel="stylesheet" href="css/estilos.css">
+</head>
+<body>
+  <div class="contenedor">
+    <header class="cabecera">
+      <div class="cabecera-texto">
+        <h1>Portal de recursos</h1>
+        <div class="raya-titulo" aria-hidden="true"></div>
+        <p class="subtitulo">Recursos para el equipo técnico y comercial de Sand</p>
+      </div>
+      <img class="logo" src="assets/logo-sand-positivo.png" alt="Logotipo de Sand" width="2139" height="900">
+    </header>
+
+    <div class="aviso-demo" role="note">
+      <span class="pildora">Datos de demostración</span>
+      <p>Los recursos de esta página son ejemplos y enlazan a documentación pública de Anthropic y OpenAI. No son recursos internos de Sand.</p>
+    </div>
+
+    <main id="contenido">
+      <section class="herramientas" aria-label="Búsqueda y filtros">
+        <div class="campo-busqueda">
+          <label for="buscador">Buscar recursos</label>
+          <input id="buscador" type="search" placeholder="Título, descripción o categoría" autocomplete="off">
+        </div>
+
+        <div class="filtros">
+          <ul id="filtros-categoria" class="lista-filtros" aria-label="Filtrar por categoría"></ul>
+          <button id="filtro-favoritos" class="chip chip-fav" type="button" aria-pressed="false">
+            Solo favoritos <span id="contador-favoritos" class="chip-n">(0)</span>
+          </button>
+        </div>
+
+        <div class="estado-resultados">
+          <p id="resumen" role="status" aria-live="polite"></p>
+          <button id="limpiar" class="enlace-boton" type="button" hidden>Limpiar filtros</button>
+        </div>
+        <p id="aviso-almacen" class="aviso-almacen" role="alert" hidden>Este navegador no permite guardar datos. Los favoritos se mantienen mientras la página esté abierta.</p>
+      </section>
+
+      <section aria-labelledby="titulo-recursos">
+        <h2 id="titulo-recursos" class="solo-lectores">Recursos</h2>
+        <ul id="rejilla" class="rejilla"></ul>
+        <div id="vacio" class="vacio" hidden></div>
+      </section>
+    </main>
+
+    <footer class="pie">
+      <span class="pie-lema">#SomosDatos</span>
+      <span>Confidencial · www.sand.es · 91 553 16 71 · comercial@sand.es</span>
+    </footer>
+  </div>
+
+  <noscript><p class="sin-js">Este portal necesita JavaScript para mostrar los recursos.</p></noscript>
+  <script src="js/datos.js"></script>
+  <script src="js/logica.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

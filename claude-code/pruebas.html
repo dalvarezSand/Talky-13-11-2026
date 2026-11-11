@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Pruebas del portal</title>
+  <style>
+    :root { --navy:#16304C; --arena:#CEA670; --hueso:#F7F5EF; --cuerpo:#374151; --gris:#6B7280; --borde:#DDE3EC; }
+    body { margin:0; background:var(--hueso); color:var(--cuerpo); font-family:Calibri,Carlito,"Segoe UI",Arial,sans-serif; line-height:1.5; }
+    main { max-width: 860px; margin: 0 auto; padding: 24px 16px 40px; }
+    h1 { font-family:Cambria,Caladea,Georgia,serif; color:var(--navy); margin:0 0 4px; }
+    .raya { width:150px; height:5px; background:#F6A015; margin:8px 0 14px; }
+    #resumen { font-weight:700; color:var(--navy); font-size:18px; }
+    ol { padding-left: 0; list-style: none; margin: 16px 0 0; }
+    li { border:1px solid var(--borde); border-left: 9px solid var(--arena); padding:8px 12px; margin-bottom:8px; }
+    li.fallo { border-left-color: var(--navy); }
+    .estado { font-weight:700; color:var(--navy); margin-right:8px; }
+    .detalle { color:var(--gris); font-size:14px; display:block; }
+  </style>
+</head>
+<body>
+<main>
+  <h1>Pruebas del portal</h1>
+  <div class="raya"></div>
+  <p>Se ejecutan al abrir la página, sin instalar nada. Comprueban la lógica de búsqueda, filtros y favoritos, y la validez de los datos de demostración.</p>
+  <p id="resumen">Ejecutando</p>
+  <ol id="resultados"></ol>
+</main>
+<script src="js/datos.js"></script>
+<script src="js/logica.js"></script>
+<script>
+(function () {
+  var L = window.PortalLogica, D = window.RECURSOS_DEMO;
+  var resultados = [];
+  function prueba(nombre, fn) {
+    try { var r = fn(); resultados.push({ nombre: nombre, ok: r === undefined || r === true, detalle: typeof r === "string" ? r : "" }); }
+    catch (e) { resultados.push({ nombre: nombre, ok: false, detalle: String(e) }); }
+  }
+  function igual(a, b) { return JSON.stringify(a) === JSON.stringify(b) || ("Esperado " + JSON.stringify(b) + " y se obtuvo " + JSON.stringify(a)); }
+  function ids(lista) { return lista.map(function (r) { return r.id; }); }
+
+  /* Almacenamiento falso */
+  function almacenFalso(inicial) {
+    var d = Object.assign({}, inicial || {});
+    return { getItem: function (k) { return k in d ? d[k] : null; }, setItem: function (k, v) { d[k] = String(v); }, removeItem: function (k) { delete d[k]; }, _d: d };
+  }
+  function almacenRoto() { return { getItem: function () { throw new Error("bloqueado"); }, setItem: function () { throw new Error("bloqueado"); } }; }
+
+  /* Lógica */
+  prueba("normalizar quita acentos y mayúsculas", function () { return igual(L.normalizar("  Configuración ÁÉÍÓÚ ñ "), "configuracion aeiou n"); });
+  prueba("normalizar tolera valores vacíos", function () { return igual([L.normalizar(null), L.normalizar(undefined)], ["", ""]); });
+  prueba("sin criterios devuelve todos los recursos", function () { return igual(L.filtrar(D, {}).length, D.length); });
+  prueba("busca sin distinguir acentos ni mayúsculas", function () { return L.filtrar(D, { texto: "CATALOGO" }).length >= 1 || "No encontró «Catálogo»"; });
+  prueba("busca en la descripción", function () { return ids(L.filtrar(D, { texto: "valores por defecto" })).indexOf("r09") !== -1; });
+  prueba("busca en la categoría y en el origen", function () { return L.filtrar(D, { texto: "extensiones" }).length === 3 && L.filtrar(D, { texto: "openai" }).length >= 5; });
+  prueba("varias palabras deben coincidir todas", function () { return igual(ids(L.filtrar(D, { texto: "codex windows" })), ["r04"]); });
+  prueba("filtra por categoría", function () { return L.filtrar(D, { categoria: "Modelos" }).every(function (r) { return r.categoria === "Modelos"; }) && L.filtrar(D, { categoria: "Modelos" }).length === 2; });
+  prueba("la categoría «todas» no filtra", function () { return igual(L.filtrar(D, { categoria: "todas" }).length, D.length); });
+  prueba("combina texto y categoría", function () { return igual(ids(L.filtrar(D, { texto: "claude", categoria: "Seguridad y datos" })), ["r08", "r10"]); });
+  prueba("solo favoritos", function () { return igual(ids(L.filtrar(D, { soloFavoritos: true, favoritos: new Set(["r03", "r12"]) })), ["r03", "r12"]); });
+  prueba("solo favoritos sin ninguno devuelve lista vacía", function () { return igual(L.filtrar(D, { soloFavoritos: true, favoritos: new Set() }), []); });
+  prueba("sin coincidencias devuelve lista vacía", function () { return igual(L.filtrar(D, { texto: "zzzzzz" }), []); });
+  prueba("las categorías conservan el orden y el recuento", function () { var c = L.categorias(D); return c[0].nombre === "Primeros pasos" && c.reduce(function (s, x) { return s + x.total; }, 0) === D.length; });
+
+  /* Favoritos y almacenamiento */
+  prueba("guarda y recupera favoritos", function () { var a = almacenFalso(); L.guardarFavoritos(a, new Set(["r01", "r05"])); return igual(L.leerFavoritos(a), ["r01", "r05"]); });
+  prueba("JSON corrupto devuelve lista vacía", function () { var a = almacenFalso(); a.setItem(L.CLAVE_FAVORITOS, "{no es json"); return igual(L.leerFavoritos(a), []); });
+  prueba("un valor que no es lista devuelve lista vacía", function () { var a = almacenFalso(); a.setItem(L.CLAVE_FAVORITOS, "{\"a\":1}"); return igual(L.leerFavoritos(a), []); });
+  prueba("sin almacenamiento no falla", function () { return igual([L.leerFavoritos(null), L.guardarFavoritos(null, new Set(["r01"]))], [[], false]); });
+  prueba("almacenamiento bloqueado no rompe la lectura ni la escritura", function () { var a = almacenRoto(); return igual([L.leerFavoritos(a), L.guardarFavoritos(a, new Set(["r01"]))], [[], false]); });
+  prueba("este navegador permite guardar favoritos", function () { return L.obtenerAlmacenamiento(window) !== null || "localStorage no disponible: el portal avisa y sigue funcionando"; });
+
+  /* Datos de demostración */
+  prueba("hay al menos 12 recursos", function () { return D.length >= 12 || "Hay " + D.length; });
+  prueba("los identificadores son únicos", function () { return new Set(ids(D)).size === D.length; });
+  prueba("todos tienen título, descripción, categoría y enlace", function () {
+    var mal = D.filter(function (r) { return !(r.titulo && r.descripcion && r.categoria && r.enlace); });
+    return mal.length === 0 || "Incompletos: " + ids(mal).join(", ");
+  });
+  prueba("todos los enlaces son https", function () { var mal = D.filter(function (r) { return !/^https:\/\//.test(r.enlace); }); return mal.length === 0 || ids(mal).join(", "); });
+  prueba("todos están marcados como datos de demostración", function () { return D.every(function (r) { return r.demo === true; }); });
+  prueba("hay al menos cuatro categorías", function () { return L.categorias(D).length >= 4; });
+
+  var fallos = resultados.filter(function (r) { return !r.ok; }).length;
+  document.getElementById("resumen").textContent = fallos === 0
+    ? "Todas las pruebas pasan (" + resultados.length + " de " + resultados.length + ")"
+    : fallos + " prueba(s) fallan de " + resultados.length;
+  document.title = (fallos === 0 ? "OK" : "FALLOS") + " · Pruebas del portal";
+  var ol = document.getElementById("resultados");
+  resultados.forEach(function (r) {
+    var li = document.createElement("li");
+    if (!r.ok) li.className = "fallo";
+    var e = document.createElement("span"); e.className = "estado"; e.textContent = r.ok ? "OK" : "FALLO";
+    li.appendChild(e); li.appendChild(document.createTextNode(r.nombre));
+    if (r.detalle) { var d = document.createElement("span"); d.className = "detalle"; d.textContent = r.detalle; li.appendChild(d); }
+    ol.appendChild(li);
+  });
+  window.RESULTADO_PRUEBAS = { total: resultados.length, fallos: fallos };
+})();
+</script>
+</body>
+</html>
